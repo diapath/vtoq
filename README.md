@@ -4,12 +4,12 @@ Visiopharm to QuPath migration scripts
 `vtoq` relies on a TSV results file exported from Visiopharm, to select image which need their ROIs exported as QuPath annotations (via GeoJSON files). The GeoJSON files are saved together with the images (path/image.ndpi -> path/image.ndpi.geojson). These can be imported en-masse for a QuPath project via the read_write_geojson.groovy script in this repository and discussed on [forum.image.sc](https://forum.image.sc/t/issue-with-accented-names-with-my-annotations-geojson-import-export-script-attached).
 
 ## Limitations
-For now, `vtoq` only handles Visiopharm ROIs (not labels) and relies on the underlying images to be in the Hamamatsu NDPI format. This is because `vtoq` needs to convert vertices defined in physical units into pixel units. This is something I could only do by fetching pixel sizes, slide origin, image dimensions in the Original image. I have not yet looked at how to do this with other image formats than Hamamatsu NDPI. I use tifffile to read the WSI image metadata.
+For now, `vtoq` only handles Visiopharm ROIs (not labels) and relies on the underlying images to be in the Hamamatsu NDPI format. This is because `vtoq` needs to convert vertices defined in physical units into pixel units. This is something I could only do by fetching pixel sizes, slide origin, image dimensions in the Original image. I have not yet looked at how to do this with other image formats than Hamamatsu NDPI. I use [tifffile](https://github.com/cgohlke/tifffile) to read the WSI image metadata.
 
-`vtoq` does handle holes in the Visiopharm ROIs and should(?) handle ROIs with different indexes.
+`vtoq` tags holes as annotations named 'Hole' and classed 'Ignore' and then relies on QuPath to subtract them from their resolved parents. `vtoq` also handles ROIs with different indexes and can attribute a different class to each index.
 
 ## Contact
-Do not hesitate to ping me here @zindy or on https://forum.image.sc (@EP.Zindy) if you want to discuss this or help me improve the tools.
+Do not hesitate to ping me here @zindy or on [https://forum.image.sc](https://forum.image.sc/t/python-script-to-migrate-visiopharm-roi-annotations-to-qupath) (@EP.Zindy) if you want to discuss this or help me improve the tools.
 
 Cheers,\
 Egor
