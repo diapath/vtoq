@@ -113,24 +113,45 @@ def ReadLine(f):
     
 def ReadEllipse(f):
     dic = convert(f, '<i5d', ['garbage','x_orig','y_orig','maj_axis','min_axis','angle'])
+    w, h = dic['maj_axis'], dic['min_axis']
+    ca, sa = np.cos(dic['angle']), np.sin(dic['angle'])
+    a = np.arange(0,1.,1/100)*2*np.pi
+    a = np.append(a, 0)
+
+    dic = convert(f, '<i3d', ['garbage','x_orig','y_orig','radius'])
+    dic['x_pts'] = dic['maj_axis']*ca*np.cos(a) - dic['min_axis']*sa*np.sin(a) + dic['x_orig']
+    dic['y_pts'] = dic['maj_axis']*sa*np.cos(a) + dic['min_axis']*ca*np.sin(a) + dic['x_orig']
     dic['shape'] = ELLIPSE
     del dic['garbage']
     return dic
 
 def ReadCircle(f):
+    a = np.arange(0,1.,1/100)*2*np.pi
+    a = np.append(a, 0)
     dic = convert(f, '<i3d', ['garbage','x_orig','y_orig','radius'])
+    dic['x_pts'] = dic['radius']*np.cos(a) + dic['x_orig']
+    dic['y_pts'] = dic['radius']*np.sin(a) + dic['y_orig']
     dic['shape'] = CIRCLE
     del dic['garbage']
     return dic    
     
 def ReadRectangle(f):
     dic = convert(f, '<i5d', ['garbage','x_orig','y_orig','width','height','angle'])
+    w, h = 2*dic['width'], 2*dic['height']
+    ca, sa = np.cos(dic['angle']), np.sin(dic['angle'])
+    dic['x_pts'] = np.array([0,w,w,0,0])*ca - np.array([0,0,h,h,0])*sa + dic['x_orig'] - w/2
+    dic['y_pts'] = np.array([0,w,w,0,0])*sa + np.array([0,0,h,h,0])*ca + dic['y_orig'] - h/2
+
     dic['shape'] = RECTANGLE
     del dic['garbage']
     return dic
     
 def ReadSquare(f):
     dic = convert(f, '<i4d', ['garbage','x_orig','y_orig','width','angle'])
+    w = dic['width']
+    ca, sa = np.cos(dic['angle']), np.sin(dic['angle'])
+    dic['x_pts'] = np.array([0,w,w,0,0])*ca+dic['x_orig']
+    dic['y_pts'] = np.array([0,0,w,w,0])*sa+dic['y_orig']
     dic['shape'] = SQUARE
     del dic['garbage']
     return dic
