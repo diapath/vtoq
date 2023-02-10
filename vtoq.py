@@ -32,10 +32,12 @@ class Feature(dict):
             self['properties']['name'] = name
         if classification is not None:
             self['properties']['classification'] = classification
+
     def add_polygon(self,coordinates):
         if coordinates[0] != coordinates[-1]:
             coordinates.append(coordinates[0])
         self['geometry']['coordinates'].append(coordinates)
+
     def size(self):
         return len(self['geometry']['coordinates'])
 
@@ -101,27 +103,33 @@ def do_convert(fn_mld, fn_image, fn_json=None, classes = None, overwrite=True, d
 
     mld = ReadMLD.ReadMLDFile(fn_mld, debug=debug)
     scale_factor, offset = get_scale_offset(fn_image, debug=debug)
-    f = None
+    ignore_class = Classification("Ignore", 0xb4b4b4)
+
     for obj in mld['ROI']:
-        if obj['shape'] == 0:
-            obj_type = obj['type']
-            if obj_type > 0 or f is None:
-                #Create a new feature (A CLEAR object type (0) can only be a hole in a previously defined annotation)
-                if obj_type in classes.keys():
+        if obj['shape'] in [ReadMLD.POLYGON, ReadMLD.ELLIPSE, ReadMLD.CIRCLE, ReadMLD.RECTANGLE, ReadMLD.SQUARE]:
+            if debug: print(obj['shape'], obj['type'])
+            arr = np.array((obj['x_pts'], obj['y_pts']),dtype=float).T
+            arr = (arr*scale_factor+offset).astype(int)
+            if obj['x_pts'][0] < -1e-38:
+                #Background, ignore
+                continue
+            elif obj['type'] == 0:
+                # Consider all holes are potentially disconnected. We'll save them as "ignored" for now.
+                f = Feature(classification=ignore_class, name='Hole')
+                f.add_polygon(arr.tolist())
+                fc['features'].append(f)
+            else:
+                #Create a new feature (a CLEAR object type (0) can only be a hole in a previously defined annotation)
+                if obj['type'] in classes.keys():
                     #We have a class associated with the ROI index
-                    annotation_class = classes[obj_type]
+                    annotation_class = classes[obj['type']]
                 else:
                     #The ROI index does not have a class associated with
                     annotation_class = None
                     
                 f = Feature(classification=annotation_class)
-                fc['features'].append(f)
-            
-            if f is not None:
-                #Add the polygon to the current feature (first is annotation, next are holes)
-                arr = np.array((obj['x_pts'], obj['y_pts']),dtype=float).T
-                arr = (arr*scale_factor+offset).astype(int)
                 f.add_polygon(arr.tolist())
+                fc['features'].append(f)
 
     with open(fn_json, "w") as fp:
         json.dump(fc,fp) 
