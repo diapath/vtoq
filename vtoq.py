@@ -19,6 +19,27 @@ import uuid
 import os
 import ReadMLD
 
+def reduce_polygon(polygon, angle_th=0, distance_th=0):
+    # code lifted from StackOverflow: https://stackoverflow.com/a/69026086
+    angle_th_rad = np.deg2rad(angle_th)
+    points_removed = [0]
+    while len(points_removed):
+        points_removed = list()
+        for i in range(0, len(polygon)-2, 2):
+            v01 = polygon[i-1] - polygon[i]
+            v12 = polygon[i] - polygon[i+1]
+            d01 = np.linalg.norm(v01)
+            d12 = np.linalg.norm(v12)
+            if d01 < distance_th and d12 < distance_th:
+                points_removed.append(i)
+                continue
+            angle = np.arccos(np.sum(v01*v12) / (d01 * d12))
+            if angle < angle_th_rad:
+                points_removed.append(i)
+
+        polygon = np.delete(polygon, points_removed, axis=0)
+    return polygon
+
 class Feature(dict):
     def __init__(self, name=None, classification=None):
         self['type'] = 'Feature'
@@ -87,38 +108,57 @@ def get_scale_offset(fn_image, debug=False):
     tif.close()
     return scale_factor, offset
 
-def do_convert(fn_mld, fn_image, fn_json=None, classes = None, overwrite=True, debug=False):
-    if fn_json is None:
-        fn_json = fn_image.strip()+'.geojson'    
-
+def do_convert(fn_mld, fn_image, fn_json=None, classes=None, overwrite=True, debug=False, scale_factor=None, offset=None, angle_th=5, distance_th=0.01):
     #The default with overwrite=True is to create a new feature collection
     fc = {
       "type": "FeatureCollection",
       "features": []
     }
     
+    if fn_json is None:
+        fn_json = fn_image.strip()+'.geojson'    
+
+    # Do we need to generate a new JSON file or do we have one we need to use?
     if os.path.exists(fn_json) and not overwrite:
         with open(fn_json) as fp:
             fc = json.load(fp)
 
+    # Here we read the MLD file with the path provided
     mld = ReadMLD.ReadMLDFile(fn_mld, debug=debug)
-    scale_factor, offset = get_scale_offset(fn_image, debug=debug)
+
+    # Only get scale_factor and offset if they weren't provided as arguments already
+    if scale_factor is None or offset is None:
+        scale_factor, offset = get_scale_offset(fn_image, debug=debug)
+
+    # The ignore class will be applied to ay holes defined in the MLD file
     ignore_class = Classification("Ignore", 0xb4b4b4)
 
     for obj in mld['ROI']:
         if obj['shape'] in [ReadMLD.POLYGON, ReadMLD.ELLIPSE, ReadMLD.CIRCLE, ReadMLD.RECTANGLE, ReadMLD.SQUARE]:
-            if debug: print(obj['shape'], obj['type'])
             arr = np.array((obj['x_pts'], obj['y_pts']),dtype=float).T
+
+            # Here we can simplify the outline
+            if distance_th > 0:
+                arr = reduce_polygon(arr, angle_th=angle_th, distance_th=distance_th)
+
+            # Here we apply scale_factor and offset
             arr = (arr*scale_factor+offset).astype(int)
-            if obj['x_pts'][0] < -1e-38:
+
+            #We need at least 3 points for a valid polygon
+            if arr.shape[0] < 3:
+                continue
+
+            if debug: print(f"Will import: ObjShape={obj['shape']}, Objtype={obj['type']}, arr.shape={arr.shape}")
+            if obj['x_pts'][0] < -1e38:
                 #Background, ignore
                 continue
-            elif obj['type'] == 0:
+
+            if obj['type'] == 0:
                 # Consider all holes are potentially disconnected. We'll save them as "ignored" for now.
-                f = Feature(classification=ignore_class, name='Hole')
-                f.add_polygon(arr.tolist())
-                fc['features'].append(f)
+                name = 'Hole'
+                annotation_class=ignore_class
             else:
+                name = None
                 #Create a new feature (a CLEAR object type (0) can only be a hole in a previously defined annotation)
                 if obj['type'] in classes.keys():
                     #We have a class associated with the ROI index
@@ -127,9 +167,12 @@ def do_convert(fn_mld, fn_image, fn_json=None, classes = None, overwrite=True, d
                     #The ROI index does not have a class associated with
                     annotation_class = None
                     
-                f = Feature(classification=annotation_class)
-                f.add_polygon(arr.tolist())
-                fc['features'].append(f)
+            # Here we create a new feature and add it to the collection
+            f = Feature(classification=annotation_class, name=name)
+            f.add_polygon(arr.tolist())
+            fc['features'].append(f)
 
     with open(fn_json, "w") as fp:
-        json.dump(fc,fp) 
+        json.dump(fc,fp) #,indent=4)
+
+    return mld
