@@ -17,28 +17,43 @@ def read_geojson(removeAnnotations=true)
     path = path+".geojson";
 
     def JSONfile = new File(path)
-    if (!JSONfile.exists()) {
+    if (JSONfile.exists()) {
+        println "Processing "+path
+    } else {
         println "No GeoJSON file for this image..."
         return
     }
+    
+    def cal = server.getPixelCalibration()
+    if (!cal.hasPixelSizeMicrons()) {
+        Dialogs.showMessageDialog("Metadata check", "No pixel information for this image!");
+        return
+    }
 
+    def pixelWidth = cal.getPixelWidthMicrons()
+    def pixelHeight = cal.getPixelHeightMicrons()
+    def ANNOTATION_AREA_MICRONS = 100
     var objs = PathIO.readObjects(JSONfile)
+    
     for (annotation in objs) {
-        println "Object: "+annotation.toString()
+        if (annotation.getROI().getScaledArea(pixelWidth, pixelHeight) < ANNOTATION_AREA_MICRONS)
+            continue
             
         annotation.setLocked(true)
         hierarchy.addPathObject(annotation) 
     }
-    
-    //Resolve Hierarchy first
-    resolveHierarchy()
+
+    runPlugin('qupath.lib.plugins.objects.RefineAnnotationsPlugin', '{"minFragmentSizeMicrons":100.0,"maxHoleSizeMicrons":100.0}')
 
     //Rely on name and class to fin the holes
     def holes = getAnnotationObjects().findAll {it.getPathClass()==getPathClass("Ignore") && it.getDisplayedName().equals("Hole")}
-
     for (hole in holes) {
+        resolveHierarchy()
         parent = hole.getParent()
         if (parent == null)
+            continue;
+        roi = parent.getROI()
+        if (roi == null)
             continue;
         parentGeom = parent.getROI().getGeometry()
         holeGeom = hole.getROI().getGeometry()
@@ -53,7 +68,7 @@ def read_geojson(removeAnnotations=true)
     }
 
     //Resolve Hierarchy again since we've introduced new objects
-    resolveHierarchy()
+    //resolveHierarchy()
     fireHierarchyUpdate()    
 }
 
