@@ -34,8 +34,12 @@ def main():
         for row in reader:
             fn_image = row['Image']
             fn_mld = row['LayerData']
+
             print(fn_image)
-            vtoq.do_convert(fn_mld, fn_image, classes=classes, overwrite=True)
+            #This is NDPI specific, but the idea to split this function out of do_convert is that
+            #maybe we'll be able to read the scale_factor and offset a different way
+            scale_factor, offset = vtoq.get_scale_offset(fn_image)
+            vtoq.do_convert(fn_mld, fn_image, classes=classes, overwrite=True, scale_factor=scale_factor, offset=offset)
 
 if __name__ == '__main__':
     main()
