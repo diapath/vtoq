@@ -12,7 +12,7 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-import csv, sys, os
+import json, csv, sys, os
 import vtoq
 
 def main():
