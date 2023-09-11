@@ -16,8 +16,8 @@ import csv, sys, os
 import vtoq
 
 def main():
-    fn_tsv = sys.argv[1] if len(sys.argv) == 2 else None
-    if len(sys.argv) != 2 or not os.path.exists(fn_tsv):
+    fn_tsv, fn_json = sys.argv[1], sys.argv[2] if len(sys.argv) == 3 else None
+    if len(sys.argv) != 3 or not os.path.exists(fn_tsv):
         print("Usage:\ntest_vtoq.py filename.tsv")
         return
 
