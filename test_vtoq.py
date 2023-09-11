@@ -22,11 +22,9 @@ def main():
         return
 
     #Here we defined the annotation classifications for QuPath (name, color as 6 bytes RGB hex value)
-    c1 = vtoq.Classification("Tumor", 0xc80000)
-    c2 = vtoq.Classification("Tissue", 0x00c800)
-
-    #The keys are the ROI indexes used in Visiopharm
-    classes = {1:c1, 2:c2}
+    with open(fn_json) as f:
+        #The keys are the ROI indexes used in Visiopharm
+        classes = {int(c): vtoq.Classification(name, int(rgb, 16)) for c, (name, rgb) in json.load(f).items()}
 
     #Iterate through the TSV file making dictionaries from the header line
     with open(fn_tsv, newline='') as csvfile:
