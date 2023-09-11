@@ -33,7 +33,7 @@ def reduce_polygon(polygon, angle_th=0, distance_th=0):
             if d01 < distance_th and d12 < distance_th:
                 points_removed.append(i)
                 continue
-            angle = np.arccos(np.sum(v01*v12) / (d01 * d12))
+            angle = np.arccos(np.clip(np.sum(v01*v12) / (d01 * d12) if (d01 * d12) else 0, 0, 1))
             if angle < angle_th_rad:
                 points_removed.append(i)
 
