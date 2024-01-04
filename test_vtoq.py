@@ -12,21 +12,19 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-import csv, sys, os
+import json, csv, sys, os
 import vtoq
 
 def main():
-    fn_tsv = sys.argv[1] if len(sys.argv) == 2 else None
-    if len(sys.argv) != 2 or not os.path.exists(fn_tsv):
+    fn_tsv, fn_json = sys.argv[1], sys.argv[2] if len(sys.argv) == 3 else None
+    if len(sys.argv) != 3 or not os.path.exists(fn_tsv):
         print("Usage:\ntest_vtoq.py filename.tsv")
         return
 
     #Here we defined the annotation classifications for QuPath (name, color as 6 bytes RGB hex value)
-    c1 = vtoq.Classification("Tumor", 0xc80000)
-    c2 = vtoq.Classification("Tissue", 0x00c800)
-
-    #The keys are the ROI indexes used in Visiopharm
-    classes = {1:c1, 2:c2}
+    with open(fn_json) as f:
+        #The keys are the ROI indexes used in Visiopharm
+        classes = {int(c): vtoq.Classification(name, int(rgb, 16)) for c, (name, rgb) in json.load(f).items()}
 
     #Iterate through the TSV file making dictionaries from the header line
     with open(fn_tsv, newline='') as csvfile:
